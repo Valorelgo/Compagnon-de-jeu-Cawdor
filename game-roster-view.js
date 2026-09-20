@@ -26,6 +26,16 @@ function renderGameView(container) {
                 </div>
             </div>
 
+            ${(typeof currentGameTerritory !== 'undefined' && currentGameTerritory) ? `
+                <div style="margin-top:10px; padding:10px 14px; background:linear-gradient(90deg, rgba(176,42,42,0.25), rgba(245,196,0,0.12)); border:1px solid var(--accent-cyan); border-radius:6px; display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+                    <span style="font-size:20px;">🚩</span>
+                    <div>
+                        <strong style="color:var(--accent-cyan); text-transform:uppercase; letter-spacing:0.5px;">Territoire en jeu — ${currentGameTerritory.name}</strong><br>
+                        <span style="font-size:13px; color:#eee;">${currentGameTerritory.battle_effect || ''}</span>
+                    </div>
+                </div>
+            ` : ''}
+
             <!-- BANDEAU SCORE ET PRIORITÉ -->
             ${renderGameScorePriorityBanner()}
 
@@ -81,6 +91,7 @@ function renderGameView(container) {
         if (!isQuick) {
             let lx = m.liveXP || { assistance: 0, objective: 0, seriouslyInjured: 0, scenario: 0, ooaKills: 0 };
             let currentTotalXP = getFighterBattleXP(m);
+            let isFightingPit = (typeof currentGameTerritory !== 'undefined' && currentGameTerritory && currentGameTerritory.id === 'ter_fighting_pit');
 
             xpBlock = `
                 <div style="margin-top:8px; padding:6px 8px; background:#111; border:1px solid #333; border-radius:4px; font-size:11px;">
@@ -106,6 +117,7 @@ function renderGameView(container) {
                             <button class="btn" style="padding:0 4px; font-size:10px;" onclick="adjLiveXP(${idx}, 'seriouslyInjured', -1)">-</button>
                             <strong>${lx.seriouslyInjured}</strong>
                             <button class="btn" style="padding:0 4px; font-size:10px;" onclick="adjLiveXP(${idx}, 'seriouslyInjured', 1)">+</button>
+                            <small style="color:#888;">(${isFightingPit ? '2XP 🚩' : '1XP'})</small>
                         </div>
                         <div style="display:flex; align-items:center; gap:3px;">
                             <span>Scénario:</span>
@@ -118,7 +130,7 @@ function renderGameView(container) {
                             <button class="btn" style="padding:0 4px; font-size:10px;" onclick="adjLiveXP(${idx}, 'ooaKills', -1)">-</button>
                             <strong style="color:#e74c3c;">${lx.ooaKills}</strong>
                             <button class="btn" style="padding:0 4px; font-size:10px;" onclick="adjLiveXP(${idx}, 'ooaKills', 1)">+</button>
-                            <small style="color:#888;">(2XP)</small>
+                            <small style="color:#888;">(${isFightingPit ? '3XP 🚩' : '2XP'})</small>
                         </div>
                     </div>
                 </div>

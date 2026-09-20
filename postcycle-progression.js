@@ -694,7 +694,15 @@ function saveMatchToHistory() {
 
     let credPrimary = parseInt(document.getElementById('hist-cred-primary')?.value) || 0;
     let credSecondary = parseInt(document.getElementById('hist-cred-secondary')?.value) || 0;
-    let totalCredits = credPrimary + credSecondary;
+
+    // Territoire "Corpse farm" : +10 cr par ennemi mis hors de combat pendant
+    // la partie (déjà comptabilisé dans currentGameRoster via liveXP.ooaKills).
+    let corpseFarmBonus = 0;
+    if (typeof currentGameTerritory !== 'undefined' && currentGameTerritory && currentGameTerritory.id === 'ter_corpse_farm' && Array.isArray(currentGameRoster)) {
+        let totalEnemiesOOA = currentGameRoster.reduce((sum, m) => sum + ((m.liveXP && m.liveXP.ooaKills) ? m.liveXP.ooaKills : 0), 0);
+        corpseFarmBonus = totalEnemiesOOA * 10;
+    }
+    let totalCredits = credPrimary + credSecondary + corpseFarmBonus;
 
     let repChange = parseInt(document.getElementById('hist-rep')?.value) || 0;
 
@@ -729,6 +737,7 @@ function saveMatchToHistory() {
         result: result,
         primaryCredits: credPrimary,
         secondaryCredits: credSecondary,
+        corpseFarmBonus: corpseFarmBonus,
         totalCredits: totalCredits,
         repChange: repChange,
         territory: territorySummary

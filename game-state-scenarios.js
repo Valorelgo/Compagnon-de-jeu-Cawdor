@@ -6,6 +6,12 @@
 // db, openModal, showToast...).
 
 let currentGameRoster = [];
+// Territoire dont l'effet de bataille s'applique à la partie en cours (choisi
+// à la mise en place, voir setupState.territoryId et startGame()). Objet de
+// db.territories (avec son battle_effect) ou null si aucun territoire choisi.
+// Vit comme currentGameRoster : en mémoire seulement, réinitialisé à chaque
+// nouvelle partie, pas persisté (une partie se joue en une session).
+let currentGameTerritory = null;
 let gameTactics = [];
 let gameScores = {
     myScore: 0,
@@ -606,6 +612,7 @@ function resetSetupState() {
         scenarioKey: 'intensification',
         role: 'attacker',
         piousActive: (_autoAlignment === 'pious'),
+        territoryId: '',
         step: 1,
         reconCount: 1,
         intensificationRandomCount: 1,
@@ -815,7 +822,27 @@ function renderGameSetup(container) {
                 </span>
             </div>
             ${isQuick ? `<p style="color:#aaa; font-size:13px; margin-bottom:12px;">Même sélection de scénarios, règles de recrutement d'escouade et cartes tactiques que le mode campagne, sans impact sur les crédits, XP ni blessures permanentes du gang.</p>` : ''}
-            
+
+            <div style="margin-bottom:12px;">
+                <label style="font-weight:bold;">Territoire en jeu (effet de bataille) :</label>
+                <select id="territory-select" style="width:100%; padding:8px; margin-top:4px; background:#222; color:#fff; border:1px solid var(--accent-purple);" onchange="setupState.territoryId = this.value; renderGameSetup(document.getElementById('main-content'));">
+                    <option value="" ${!setupState.territoryId ? 'selected' : ''}>-- Aucun territoire --</option>
+                    ${(typeof db !== 'undefined' && db.territories ? db.territories : []).map(t => `
+                        <option value="${t.id}" ${setupState.territoryId === t.id ? 'selected' : ''}>${t.name}</option>
+                    `).join('')}
+                </select>
+                ${(() => {
+                    if (!setupState.territoryId || typeof db === 'undefined' || !db.territories) return '';
+                    let t = db.territories.find(x => x.id === setupState.territoryId);
+                    if (!t) return '';
+                    return `
+                        <div style="background:#221a08; border:1px solid #f39c12; padding:8px 10px; border-radius:5px; margin-top:6px; font-size:12.5px;">
+                            <strong style="color:#f39c12;">🚩 ${t.name} :</strong> <span style="color:#ddd;">${t.battle_effect || 'Aucun effet en jeu.'}</span>
+                        </div>
+                    `;
+                })()}
+            </div>
+
             <div style="margin-bottom:12px;">
                 <label style="font-weight:bold;">Type de recrutement / Scénario :</label>
                 <select id="scenario-select" style="width:100%; padding:8px; margin-top:4px; background:#222; color:#fff; border:1px solid var(--accent-purple);" onchange="changeScenario(this.value)">
@@ -1077,7 +1104,9 @@ function renderPiousSection(availableMembers) {
 }
 
 function changeScenario(key) {
+    let keepTerritoryId = setupState.territoryId;
     resetSetupState();
+    setupState.territoryId = keepTerritoryId;
     setupState.scenarioKey = key;
     renderGameSetup(document.getElementById('main-content'));
 }
@@ -1216,6 +1245,9 @@ function startGame() {
     }
 
     currentGameRoster = [];
+    currentGameTerritory = (typeof db !== 'undefined' && db.territories && setupState.territoryId)
+        ? (db.territories.find(t => t.id === setupState.territoryId) || null)
+        : null;
     gameScores = {
         myScore: 0,
         opponentScore: 0,
@@ -1452,6 +1484,11 @@ function adjLiveXP(fighterIdx, key, delta) {
 function getFighterBattleXP(m) {
     if (!m) return 1;
     let lx = m.liveXP || { assistance: 0, objective: 0, seriouslyInjured: 0, scenario: 0, ooaKills: 0 };
-    return 1 + (lx.assistance || 0) + (lx.objective || 0) + (lx.seriouslyInjured || 0) + (lx.scenario || 0) + ((lx.ooaKills || 0) * 2);
+    // Territoire "Fighting pit" : +1 XP supplémentaire par Sérieusement blessé
+    // ou OOA infligé (voir currentGameTerritory, choisi à la mise en place).
+    let fightingPitBonus = (typeof currentGameTerritory !== 'undefined' && currentGameTerritory && currentGameTerritory.id === 'ter_fighting_pit') ? 1 : 0;
+    let xpPerSeriousInjury = 1 + fightingPitBonus;
+    let xpPerOoaKill = 2 + fightingPitBonus;
+    return 1 + (lx.assistance || 0) + (lx.objective || 0) + ((lx.seriouslyInjured || 0) * xpPerSeriousInjury) + (lx.scenario || 0) + ((lx.ooaKills || 0) * xpPerOoaKill);
 }
 

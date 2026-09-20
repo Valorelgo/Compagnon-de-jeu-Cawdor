@@ -38,6 +38,12 @@ function renderPostBattleView(container) {
                 <button class="btn" onclick="safeNavigate('gang-manage')">← Retour Gestion du Gang</button>
                 <button class="btn btn-cyan" onclick="startPostCycleView(document.getElementById('main-content'))">Passer au Post-Cycle →</button>
             </div>
+
+            ${(typeof currentGameTerritory !== 'undefined' && currentGameTerritory) ? `
+                <div style="margin-top:10px; padding:8px 12px; background:rgba(245,196,0,0.1); border:1px solid #f39c12; border-radius:6px; font-size:12.5px;">
+                    🚩 <strong style="color:#f39c12;">Territoire de la partie — ${currentGameTerritory.name} :</strong> <span style="color:#ddd;">${currentGameTerritory.battle_effect || ''}</span>
+                </div>
+            ` : ''}
             <hr style="margin: 15px 0; border-color: #333;">
 
             <!-- RÉCAPITULATIF DES GAINS D'EXPÉRIENCE (XP) -->
@@ -73,10 +79,11 @@ function renderPostBattleView(container) {
                                     status: m.ooa ? 'Out of action' : 'Prêt'
                                 };
 
+                                let isFightingPit = (typeof currentGameTerritory !== 'undefined' && currentGameTerritory && currentGameTerritory.id === 'ter_fighting_pit');
                                 let details = [];
                                 details.push('+1 Participation');
-                                if (gain.ooaKills > 0) details.push(`+${gain.ooaKills * 2} (${gain.ooaKills} ennemi(s) OOA)`);
-                                if (gain.seriouslyInjured > 0) details.push(`+${gain.seriouslyInjured} (Sér. blessé causé)`);
+                                if (gain.ooaKills > 0) details.push(`+${gain.ooaKills * (isFightingPit ? 3 : 2)} (${gain.ooaKills} ennemi(s) OOA${isFightingPit ? ', 🚩 Fighting pit' : ''})`);
+                                if (gain.seriouslyInjured > 0) details.push(`+${gain.seriouslyInjured * (isFightingPit ? 2 : 1)} (Sér. blessé causé${isFightingPit ? ', 🚩 Fighting pit' : ''})`);
                                 if (gain.assistance > 0) details.push(`+${gain.assistance} (Assistance)`);
                                 if (gain.objective > 0) details.push(`+${gain.objective} (Objectif)`);
                                 if (gain.scenario > 0) details.push(`+${gain.scenario} (Scénario)`);
@@ -191,6 +198,9 @@ function renderPostBattleView(container) {
                     <div>
                         <label style="font-size:12px;">Ennemis mis OOA (calculé) :</label>
                         <input type="text" value="${totalEnemiesOOA}" disabled style="width:100%; padding:4px; background:#222; color:#2ecc71; font-weight:bold;">
+                        ${(typeof currentGameTerritory !== 'undefined' && currentGameTerritory && currentGameTerritory.id === 'ter_corpse_farm' && totalEnemiesOOA > 0) ? `
+                            <small style="color:#f39c12;">🚩 Corpse farm : +${totalEnemiesOOA * 10} cr ajoutés automatiquement à l'enregistrement.</small>
+                        ` : ''}
                     </div>
                     <div>
                         <label style="font-size:12px;">Variation Réputation (+/-) :</label>
