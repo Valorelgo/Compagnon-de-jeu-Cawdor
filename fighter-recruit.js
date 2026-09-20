@@ -245,6 +245,7 @@ function selectRecruitProfile(charId) {
         totalCost: char.cost,
         xp: char.starting_xp || 0
     };
+    if (typeof syncInnateWeapons === 'function') syncInnateWeapons(tempFighter);
     appState.editTarget = null;
     navigate('fighter-edit');
 }
@@ -256,6 +257,8 @@ function editFighter(idx) {
     }
     appState.editTarget = idx;
     tempFighter = JSON.parse(JSON.stringify(currentGang.members[idx]));
+
+    if (typeof syncInnateWeapons === 'function') syncInnateWeapons(tempFighter);
 
     if (tempFighter.weapons) {
         tempFighter.weapons.forEach(w => {
@@ -469,7 +472,9 @@ function renderFighterEdit(container) {
                             ${lockedOptionsHTML}
                             ${w.accessory ? `<br><small style="color:var(--accent-cyan); margin-left:12px;">↳ Accessoire (1 max) : ${w.accessory.name} ${w.accessory.effect ? `— <em>${w.accessory.effect}</em>` : ''} ${w.accessory.fromStash ? '<span style="color:#2ecc71;">(Réserve - 0c)</span>' : `(${w.accessory.cost_credits||0}c)`} ${!isBeast && (!isMerc || isHiveScum) ? `<button class="btn-danger" style="padding:2px 6px; font-size:10px; margin-left:5px;" onclick="removeWeaponAccessory(${i})">Retirer accessoire</button>` : ''}</small>` : (!isBeast && (!isMerc || isHiveScum) ? `<br><button style="padding:2px 6px; font-size:11px; margin-left:12px; margin-top:4px;" onclick="openWeaponAccessoryModal(${i})">+ Ajouter un accessoire (1 max)</button>` : '')}
                         </div>
-                        <button class="btn-danger" style="padding:2px 6px; font-size:11px; flex-shrink:0;" onclick="removeWeapon(${i})" title="${currentGang && currentGang.isEstablished ? 'Déséquiper et envoyer dans la réserve (avec accessoire si équipé)' : 'Supprimer'}">${currentGang && currentGang.isEstablished ? 'Déséquiper' : 'Supprimer'}</button>
+                        ${w.isInnateWeapon
+                            ? `<span style="background:rgba(0,206,201,0.18); border:1px solid rgba(0,206,201,0.5); color:#81ecec; font-size:11px; font-weight:bold; padding:3px 10px; border-radius:4px; flex-shrink:0; text-transform:uppercase;" title="Arme intégrée donnée automatiquement par une compétence — 0 emplacement, non retirable manuellement">Innée</span>`
+                            : `<button class="btn-danger" style="padding:2px 6px; font-size:11px; flex-shrink:0;" onclick="removeWeapon(${i})" title="${currentGang && currentGang.isEstablished ? 'Déséquiper et envoyer dans la réserve (avec accessoire si équipé)' : 'Supprimer'}">${currentGang && currentGang.isEstablished ? 'Déséquiper' : 'Supprimer'}</button>`}
                     </div>
                     `;
                 }).join('')}

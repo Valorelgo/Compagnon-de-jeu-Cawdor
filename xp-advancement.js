@@ -88,6 +88,7 @@ function applySkillToFighter(m, skillDefOrName, cost) {
     if (!m.skills) m.skills = [];
     let toAdd = (typeof skillDefOrName === 'object') ? JSON.parse(JSON.stringify(skillDefOrName)) : skillDefOrName;
     m.skills.push(toAdd);
+    if (typeof syncInnateWeapons === 'function') syncInnateWeapons(m);
     m.advancesCost = (m.advancesCost || 0) + cost;
     m.totalCost = (m.totalCost || m.cost || 0) + cost;
     m.advancesCount = (m.advancesCount || 0) + 1;

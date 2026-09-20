@@ -169,6 +169,7 @@ function saveFighter() {
         }
     }
 
+    if (typeof syncInnateWeapons === 'function') syncInnateWeapons(tempFighter);
     tempFighter.totalCost = calculateFighterCost(tempFighter);
 
     // Montant effectivement débité/remboursé lors de CETTE sauvegarde (toutes

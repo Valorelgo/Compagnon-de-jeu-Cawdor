@@ -491,6 +491,50 @@ function countPiousFanaticInRoster(gang) {
     return counts;
 }
 
+// Armes intégrées données automatiquement par certaines compétences (ex.
+// Headbutt via "Arme intégrée : ..." dans sa description). db.weapons peut
+// contenir des armes marquées isInnateWeapon:true avec un granted_by_skill
+// (id de compétence). Cette fonction :
+//  - ajoute l'arme au guerrier dès qu'il possède la compétence et ne l'a pas
+//    déjà (comparaison par id, donc jamais de doublon même rappelée en boucle
+//    - c'est l'appel générique demandé, à la place d'un cas par personnage),
+//  - la retire si la compétence a disparu (ex. changement de choix pendant
+//    la création avant sauvegarde).
+// N'affecte que fighter.weapons ; le coût en emplacements (toujours 0 pour
+// ces armes) est géré séparément par getWeaponSlotCost().
+// Appelée à chaque ouverture de fiche (editFighter), à la sauvegarde
+// (saveFighter) et à chaque compétence gagnée en XP (applySkillToFighter),
+// donc idempotente par construction : la rappeler ne duplique jamais rien.
+function syncInnateWeapons(fighter) {
+    if (!fighter || typeof db === 'undefined' || !db.weapons || !db.skills) return;
+    if (!fighter.weapons) fighter.weapons = [];
+
+    let ownedSkillIds = (fighter.skills || []).map(s => (typeof s === 'object' && s) ? s.id : null).filter(Boolean);
+    let ownedSkillNames = (fighter.skills || []).map(s => ((typeof s === 'string' ? s : (s && s.name)) || '').toLowerCase()).filter(Boolean);
+    let allSkillDefs = Object.values(db.skills).flat();
+    let innateDefs = db.weapons.filter(w => w.isInnateWeapon && w.granted_by_skill);
+
+    function fighterHasSkill(skillId) {
+        if (ownedSkillIds.includes(skillId)) return true;
+        let def = allSkillDefs.find(s => s.id === skillId);
+        return !!(def && ownedSkillNames.includes((def.name || '').toLowerCase()));
+    }
+
+    // Retire les armes innées dont la compétence n'est plus possédée.
+    fighter.weapons = fighter.weapons.filter(w => {
+        if (!w.isInnateWeapon) return true;
+        let def = innateDefs.find(d => d.id === w.id);
+        return def ? fighterHasSkill(def.granted_by_skill) : true;
+    });
+
+    // Ajoute les armes innées manquantes pour les compétences possédées.
+    innateDefs.forEach(def => {
+        if (!fighterHasSkill(def.granted_by_skill)) return;
+        if (fighter.weapons.some(w => w.id === def.id)) return;
+        fighter.weapons.push(JSON.parse(JSON.stringify(def)));
+    });
+}
+
 function normalizeTypeKey(t) {
     return String(t || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
 }

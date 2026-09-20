@@ -341,6 +341,12 @@ const db = {
         { id: "wpn_beak_talons", name: "Beak & talons", profiles: [{ name: "Unique", SR: "E", LR: "-", S: "S+1", AP: "-1", L: 2, traits: "Melee, déchirant (6+)" }], default_for: "char_shen_bird" },
         { id: "wpn_heavy_cleaver", name: "Heavy cleaver", profiles: [{ name: "Unique", SR: "E", LR: "-", S: "S+2", AP: "-", L: 2, traits: "Commotion (5+), lourd, melee, encombrant" }], default_for: "char_stig_shambler" },
 
+        // --- Armes intégrées données automatiquement par une compétence ---
+        // (voir syncInnateWeapons() dans core-state.js : ajoutées/retirées
+        // automatiquement selon les compétences possédées, 0 emplacement,
+        // jamais achetables, jamais retirables manuellement)
+        { id: "wpn_headbutt", name: "Headbutt", profiles: [{ name: "Unique", SR: "E", LR: "-", S: "S+1", AP: "-", L: 1, traits: "Melee, attaques additionnelles (1)" }], cost_credits: 0, isInnateWeapon: true, granted_by_skill: "sk_coup_boule" },
+
         // --- Grenades à main (armes comptant comme équipement, cf counts_as_equip) ---
         { id: "wpn_grenade_explo", name: "Grenade explosive", type: "Grenade", profiles: [{ name: "Unique", SR: "-", LR: '6"', S: 5, AP: "-1", L: 2, traits: "Munitions (5+), explosion (5\"), knockback (5+), limité" }], cost_credits: 60, cost_tp: 2, counts_as_equip: true, is_weapon_pious: true, is_weapon_fanatic: true },
         { id: "wpn_grenade_gaz", name: "Grenade à gaz asphyxiant", type: "Grenade", profiles: [{ name: "Unique", SR: "-", LR: '9"', S: "-", AP: "-", L: 1, traits: "Munitions (5+), explosion (3\"), gaz, limité, toxine (3+)" }], cost_credits: 45, cost_tp: 1, counts_as_equip: true, is_weapon_pious: false, is_weapon_fanatic: false },
