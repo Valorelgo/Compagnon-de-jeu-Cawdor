@@ -145,18 +145,19 @@ function quickEquipStashItem(itemName, fighterId) {
     let stItem = currentGang.stash[sIdx];
     let itemType = (typeof stItem === 'object' && stItem.type) ? stItem.type : '';
 
-    // Un familier de la réserve ne peut pas être "équipé" comme un objet
-    // classique : sa fiche complète (stats, armes, compétences...) doit être
-    // recréée, comme à l'achat (voir createFamiliarMemberObject). Ce guerrier
-    // n'étant pas forcément en cours d'édition ici, l'action est immédiate et
-    // définitive, directement sur le gang.
+    // Familier : ne doit jamais être traité comme un simple objet d'équipement.
+    // Il faut recréer sa fiche complète de combattant (stats, compétences...) via
+    // createFamiliarMemberObject, exactement comme adoptFamiliarFromStash() le
+    // fait déjà depuis la fiche du combattant — sinon on se retrouve avec un
+    // objet inerte dans l'équipement, sans figurine jouable derrière.
     if (itemType === 'Familier') {
-        let charDef = (typeof db !== 'undefined' && db.characters) ? db.characters.find(c => c.id === stItem.familiarCharId) : null;
-        if (!charDef) return showToast("Ce familier n'est plus reconnu (fiche d'origine introuvable).", "error");
+        let familiarCharId = (typeof stItem === 'object') ? stItem.familiarCharId : null;
+        let charDef = familiarCharId ? db.characters.find(c => c.id === familiarCharId) : null;
+        if (!charDef) return showToast("Ce familier ne peut pas être identifié (donnée de réserve obsolète ou corrompue).", "error");
 
         currentGang.stash.splice(sIdx, 1);
-        let familiarMember = (typeof createFamiliarMemberObject === 'function') ? createFamiliarMemberObject(charDef, m.id) : null;
-        if (!familiarMember) return showToast("Impossible de recréer la fiche du familier.", "error");
+
+        let familiarMember = createFamiliarMemberObject(charDef, m.id);
         currentGang.members.push(familiarMember);
 
         if (!m.equipment) m.equipment = [];
@@ -695,13 +696,13 @@ function saveMatchToHistory() {
     let credPrimary = parseInt(document.getElementById('hist-cred-primary')?.value) || 0;
     let credSecondary = parseInt(document.getElementById('hist-cred-secondary')?.value) || 0;
 
-    // Territoire "Corpse farm" : +10 cr par ennemi mis hors de combat pendant
-    // la partie (déjà comptabilisé dans currentGameRoster via liveXP.ooaKills).
-    let corpseFarmBonus = 0;
-    if (typeof currentGameTerritory !== 'undefined' && currentGameTerritory && currentGameTerritory.id === 'ter_corpse_farm' && Array.isArray(currentGameRoster)) {
-        let totalEnemiesOOA = currentGameRoster.reduce((sum, m) => sum + ((m.liveXP && m.liveXP.ooaKills) ? m.liveXP.ooaKills : 0), 0);
-        corpseFarmBonus = totalEnemiesOOA * 10;
-    }
+    // Territoire Corpse Farm (voir battleCreditsPerOOA dans db.territories) :
+    // +X crédits par ennemi mis hors de combat pendant la partie, ajoutés
+    // automatiquement (voir aussi l'affichage informatif dans renderPostBattleView).
+    let battleTerritoryDef = (typeof gameScores !== 'undefined' && gameScores) ? getTerritoryDef(gameScores.territoryId) : null;
+    let totalEnemiesOOAForCredits = (typeof currentGameRoster !== 'undefined' ? currentGameRoster : []).reduce((sum, m) => sum + ((m.liveXP && m.liveXP.ooaKills) ? m.liveXP.ooaKills : 0), 0);
+    let corpseFarmBonus = (battleTerritoryDef && battleTerritoryDef.battleCreditsPerOOA) ? totalEnemiesOOAForCredits * battleTerritoryDef.battleCreditsPerOOA : 0;
+
     let totalCredits = credPrimary + credSecondary + corpseFarmBonus;
 
     let repChange = parseInt(document.getElementById('hist-rep')?.value) || 0;
@@ -737,7 +738,7 @@ function saveMatchToHistory() {
         result: result,
         primaryCredits: credPrimary,
         secondaryCredits: credSecondary,
-        corpseFarmBonus: corpseFarmBonus,
+        territoryBonusCredits: corpseFarmBonus,
         totalCredits: totalCredits,
         repChange: repChange,
         territory: territorySummary
