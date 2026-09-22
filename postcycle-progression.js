@@ -145,19 +145,18 @@ function quickEquipStashItem(itemName, fighterId) {
     let stItem = currentGang.stash[sIdx];
     let itemType = (typeof stItem === 'object' && stItem.type) ? stItem.type : '';
 
-    // Familier : ne doit jamais être traité comme un simple objet d'équipement.
-    // Il faut recréer sa fiche complète de combattant (stats, compétences...) via
-    // createFamiliarMemberObject, exactement comme adoptFamiliarFromStash() le
-    // fait déjà depuis la fiche du combattant — sinon on se retrouve avec un
-    // objet inerte dans l'équipement, sans figurine jouable derrière.
+    // Un familier de la réserve ne peut pas être "équipé" comme un objet
+    // classique : sa fiche complète (stats, armes, compétences...) doit être
+    // recréée, comme à l'achat (voir createFamiliarMemberObject). Ce guerrier
+    // n'étant pas forcément en cours d'édition ici, l'action est immédiate et
+    // définitive, directement sur le gang.
     if (itemType === 'Familier') {
-        let familiarCharId = (typeof stItem === 'object') ? stItem.familiarCharId : null;
-        let charDef = familiarCharId ? db.characters.find(c => c.id === familiarCharId) : null;
-        if (!charDef) return showToast("Ce familier ne peut pas être identifié (donnée de réserve obsolète ou corrompue).", "error");
+        let charDef = (typeof db !== 'undefined' && db.characters) ? db.characters.find(c => c.id === stItem.familiarCharId) : null;
+        if (!charDef) return showToast("Ce familier n'est plus reconnu (fiche d'origine introuvable).", "error");
 
         currentGang.stash.splice(sIdx, 1);
-
-        let familiarMember = createFamiliarMemberObject(charDef, m.id);
+        let familiarMember = (typeof createFamiliarMemberObject === 'function') ? createFamiliarMemberObject(charDef, m.id) : null;
+        if (!familiarMember) return showToast("Impossible de recréer la fiche du familier.", "error");
         currentGang.members.push(familiarMember);
 
         if (!m.equipment) m.equipment = [];
@@ -360,6 +359,59 @@ function actionReputationBonus() {
     safeSave();
 
     showToast(`Réputation du gang (${rep}) x10 : +${bonus} crédits ajoutés aux caisses du gang !`, "success");
+    renderPostCycleView(document.getElementById('main-content'));
+}
+
+// Cycle de pause : événement unique au milieu de la campagne (pas par cycle,
+// contrairement au bonus de réputation), qui donne 250 cr à dépenser en
+// guerriers et équipement. Le flag currentGang.pauseCycleUsed persiste dans
+// la sauvegarde du gang (contrairement à postCycleSession, remis à zéro à
+// chaque entrée en post-cycle).
+function actionPauseCycle() {
+    if (!currentGang) return;
+
+    if (!currentGang.pauseCycleUsed) {
+        showConfirmModal(
+            "Cycle de pause",
+            "Confirmez-vous qu'il s'agit bien du cycle de pause de la campagne ? Le gang va recevoir 250 crédits à dépenser en guerriers et équipement.",
+            "Confirmer (+250 cr)",
+            () => {
+                currentGang.credits = (currentGang.credits || 0) + 250;
+                currentGang.pauseCycleUsed = true;
+                safeSave();
+                showToast("Cycle de pause : +250 crédits ajoutés aux caisses du gang !", "success");
+                renderPostCycleView(document.getElementById('main-content'));
+            }
+        );
+        return;
+    }
+
+    openModal("⏸️ Cycle de pause déjà utilisé", `
+        <p>Attention, vous avez déjà utilisé le cycle de pause. Êtes-vous sûr de vouloir continuer ?</p>
+        <div style="display:flex; flex-direction:column; gap:10px; margin-top:16px;">
+            <button class="btn btn-cyan" style="width:100%;" onclick="confirmPauseCycleAgain()">Continuer quand même (+250 cr)</button>
+            <button class="btn-danger" style="width:100%;" onclick="undoPauseCycle()">Cycle de pause fait par erreur ? (-250 cr)</button>
+            <button class="btn" style="width:100%;" onclick="closeModal()">Annuler</button>
+        </div>
+    `);
+}
+
+function confirmPauseCycleAgain() {
+    if (!currentGang) return;
+    currentGang.credits = (currentGang.credits || 0) + 250;
+    safeSave();
+    closeModal();
+    showToast("Cycle de pause (à nouveau) : +250 crédits ajoutés aux caisses du gang !", "success");
+    renderPostCycleView(document.getElementById('main-content'));
+}
+
+function undoPauseCycle() {
+    if (!currentGang) return;
+    currentGang.credits = (currentGang.credits || 0) - 250;
+    currentGang.pauseCycleUsed = false;
+    safeSave();
+    closeModal();
+    showToast("Cycle de pause annulé : -250 crédits retirés, le bonus redevient disponible.", "info");
     renderPostCycleView(document.getElementById('main-content'));
 }
 
@@ -696,13 +748,13 @@ function saveMatchToHistory() {
     let credPrimary = parseInt(document.getElementById('hist-cred-primary')?.value) || 0;
     let credSecondary = parseInt(document.getElementById('hist-cred-secondary')?.value) || 0;
 
-    // Territoire Corpse Farm (voir battleCreditsPerOOA dans db.territories) :
-    // +X crédits par ennemi mis hors de combat pendant la partie, ajoutés
-    // automatiquement (voir aussi l'affichage informatif dans renderPostBattleView).
-    let battleTerritoryDef = (typeof gameScores !== 'undefined' && gameScores) ? getTerritoryDef(gameScores.territoryId) : null;
-    let totalEnemiesOOAForCredits = (typeof currentGameRoster !== 'undefined' ? currentGameRoster : []).reduce((sum, m) => sum + ((m.liveXP && m.liveXP.ooaKills) ? m.liveXP.ooaKills : 0), 0);
-    let corpseFarmBonus = (battleTerritoryDef && battleTerritoryDef.battleCreditsPerOOA) ? totalEnemiesOOAForCredits * battleTerritoryDef.battleCreditsPerOOA : 0;
-
+    // Territoire "Corpse farm" : +10 cr par ennemi mis hors de combat pendant
+    // la partie (déjà comptabilisé dans currentGameRoster via liveXP.ooaKills).
+    let corpseFarmBonus = 0;
+    if (typeof currentGameTerritory !== 'undefined' && currentGameTerritory && currentGameTerritory.id === 'ter_corpse_farm' && Array.isArray(currentGameRoster)) {
+        let totalEnemiesOOA = currentGameRoster.reduce((sum, m) => sum + ((m.liveXP && m.liveXP.ooaKills) ? m.liveXP.ooaKills : 0), 0);
+        corpseFarmBonus = totalEnemiesOOA * 10;
+    }
     let totalCredits = credPrimary + credSecondary + corpseFarmBonus;
 
     let repChange = parseInt(document.getElementById('hist-rep')?.value) || 0;
@@ -738,7 +790,7 @@ function saveMatchToHistory() {
         result: result,
         primaryCredits: credPrimary,
         secondaryCredits: credSecondary,
-        territoryBonusCredits: corpseFarmBonus,
+        corpseFarmBonus: corpseFarmBonus,
         totalCredits: totalCredits,
         repChange: repChange,
         territory: territorySummary

@@ -184,6 +184,10 @@ function renderGameView(container) {
                                     <input type="checkbox" ${m.activated ? 'checked' : ''} ${isFuyard ? 'disabled' : ''} onchange="toggleActivation(${idx})"> Activé
                                 </label>
                             </div>
+
+                            ${m.status === 'Sérieusement blessé' ? `
+                                <button class="btn-danger" style="padding:2px 8px; font-size:11px;" title="Tente de quitter le combat : D6, 1-2 Hors de combat, 3-6 indemne (Fuyard)" onclick="attemptLeaveCombat(${idx})">🏃 Tenter de quitter le combat</button>
+                            ` : ''}
                         `}
                     </div>
                 </div>
@@ -819,8 +823,85 @@ function openEndOrQuitGameModal() {
     openModal("Quitter ou Terminer la Partie", html);
 }
 
+// File d'attente des jets de survie "Sérieusement blessé -> Hors de combat ?"
+// à résoudre un par un (modale) avant de finaliser la fin de partie. Utilisée
+// par processEndGame() (fin de partie) et par attemptLeaveCombat() (tentative
+// volontaire de quitter le combat en cours de partie, même règle).
+let _seriousInjuryQueue = [];
+let _seriousInjuryOnDone = null;
+
+function advanceSeriousInjuryQueue() {
+    if (_seriousInjuryQueue.length === 0) {
+        let done = _seriousInjuryOnDone;
+        _seriousInjuryOnDone = null;
+        if (done) done();
+        return;
+    }
+    let idx = _seriousInjuryQueue.shift();
+    let bf = currentGameRoster[idx];
+    if (!bf || bf.status !== 'Sérieusement blessé') return advanceSeriousInjuryQueue();
+
+    openModal(`🎲 Sérieusement blessé — ${bf.customName}`, `
+        <p><strong>${bf.customName}</strong> tente de s'en sortir alors qu'il est <strong>Sérieusement blessé</strong>.</p>
+        <div style="background:#221008; border:1px solid #e67e22; padding:8px 10px; border-radius:5px; color:#f39c12; font-size:13px; margin:10px 0;">
+            Rappel de la règle : jetez un D6. Sur <strong>1-2</strong>, il finit <strong>Hors de combat</strong> (blessure permanente). Sur <strong>3-6</strong>, il s'en sort indemne.
+        </div>
+        <p style="font-size:13px; color:#bbb;">Quel est le résultat du dé physique ?</p>
+        <div style="display:flex; gap:10px; margin-top:10px;">
+            <button class="btn-danger" style="flex:1;" onclick="resolveSeriousInjuryRoll(${idx}, true)">1-2 : Hors de combat</button>
+            <button class="btn btn-cyan" style="flex:1;" onclick="resolveSeriousInjuryRoll(${idx}, false)">3-6 : Indemne</button>
+        </div>
+    `);
+}
+
+function resolveSeriousInjuryRoll(idx, becameOOA) {
+    let bf = currentGameRoster[idx];
+    if (bf) {
+        bf.seriousInjuryRollResult = becameOOA ? 'ooa' : 'safe';
+        if (becameOOA) {
+            bf.status = 'Out of action';
+        } else if (bf.leavingCombatAttempt) {
+            // Tentative de quitter le combat réussie : le guerrier se retire du
+            // combat (comme un Fuyard), sans risque de blessure permanente
+            // puisqu'il vient justement de passer son jet de survie.
+            bf.status = 'Fuyard';
+            bf.wasSeriouslyInjuredWhenFled = false;
+        }
+        delete bf.leavingCombatAttempt;
+    }
+    closeModal();
+    if (typeof renderGameView === 'function' && document.getElementById('main-content')) {
+        renderGameView(document.getElementById('main-content'));
+    }
+    advanceSeriousInjuryQueue();
+}
+
+// Option en cours de partie : un guerrier Sérieusement blessé peut tenter de
+// quitter le combat avant la fin de la partie, avec exactement le même jet
+// que celui appliqué en fin de partie (voir advanceSeriousInjuryQueue).
+function attemptLeaveCombat(idx) {
+    let bf = currentGameRoster[idx];
+    if (!bf || bf.status !== 'Sérieusement blessé') return;
+    bf.leavingCombatAttempt = true;
+    _seriousInjuryQueue = [idx];
+    _seriousInjuryOnDone = null;
+    advanceSeriousInjuryQueue();
+}
+
 function processEndGame() {
     setGameHeaderVisibility(false);
+
+    // Chaque guerrier qui termine la partie encore Sérieusement blessé (sans
+    // avoir fui, ni déjà être Hors de combat) doit tenter son jet de survie
+    // avant qu'on calcule les gains de fin de partie.
+    _seriousInjuryQueue = currentGameRoster
+        .map((bf, idx) => idx)
+        .filter(idx => currentGameRoster[idx] && currentGameRoster[idx].status === 'Sérieusement blessé' && !currentGameRoster[idx].isFamiliar);
+    _seriousInjuryOnDone = finalizeEndGame;
+    advanceSeriousInjuryQueue();
+}
+
+function finalizeEndGame() {
 
     if (currentGang && currentGang.members) {
         currentGameRoster.forEach(battleFighter => {
