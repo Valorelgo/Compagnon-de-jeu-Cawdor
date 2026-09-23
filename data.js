@@ -246,10 +246,13 @@ const db = {
             id: "wpn_fusil_pompe", name: "Fusil à pompe",
             profiles: [
                 { name: "Dispersion", SR: '4"', LR: '8"', S: 3, AP: "-", L: 1, traits: "Tir rapide (2)" },
-                { name: "Concentré", SR: '8"', LR: '16"', S: 4, AP: "-", L: 1, traits: "Knockback (5+)" },
-                { name: "Executeur", SR: '4"', LR: '8"', S: 4, AP: "-2", L: 1, traits: "Munitions (5+), knockback (5+)" },
-                { name: "Retributor", SR: '4"', LR: '16"', S: 4, AP: "-", L: 1, traits: "Tir rapide (2), flammes (5+)" }
-            ], cost_credits: 35, cost_tp: 0, is_hive_scum: true, is_weapon_pious: false, is_weapon_fanatic: true
+                { name: "Concentré", SR: '8"', LR: '16"', S: 4, AP: "-", L: 1, traits: "Knockback (5+)" }
+            ],
+            optional_profiles: [
+                { name: "Executeur", SR: '4"', LR: '8"', S: 4, AP: "-2", L: 1, traits: "Munitions (5+), knockback (5+)", extra_cost: 45 },
+                { name: "Retributor", SR: '4"', LR: '16"', S: 4, AP: "-", L: 1, traits: "Tir rapide (2), flammes (5+)", extra_cost: 25 }
+            ],
+            cost_credits: 35, cost_tp: 0, is_hive_scum: true, is_weapon_pious: false, is_weapon_fanatic: true
         },
         { id: "wpn_pist_aiguille", name: "Pistolet à aiguille", profiles: [{ name: "Unique", SR: '4"', LR: '9"', S: "-", AP: "-", L: 1, traits: "Léger, toxine (3+)" }], cost_credits: 25, cost_tp: 1, is_hive_scum: false, is_weapon_pious: false, is_weapon_fanatic: false },
         { id: "wpn_fusil_aiguille", name: "Fusil à aiguille", profiles: [{ name: "Unique", SR: '9"', LR: '18"', S: "-", AP: "-1", L: 1, traits: "Toxine (3+)" }], cost_credits: 45, cost_tp: 2, is_hive_scum: false, is_weapon_pious: false, is_weapon_fanatic: false },
