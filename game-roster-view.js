@@ -110,7 +110,7 @@ function renderGameView(container) {
                             <span>Objectif:</span>
                             <button class="btn" style="padding:0 4px; font-size:10px;" onclick="adjLiveXP(${idx}, 'objective', -1)">-</button>
                             <strong>${lx.objective}</strong>
-                            <button class="btn" style="padding:0 4px; font-size:10px;" onclick="adjLiveXP(${idx}, 'objective', 1)">+</button>
+                            <button class="btn" style="padding:0 4px; font-size:10px;" ${lx.objective >= 1 ? 'disabled title="Déjà gagné pour cette partie"' : ''} onclick="adjLiveXP(${idx}, 'objective', 1)">+</button>
                         </div>
                         <div style="display:flex; align-items:center; gap:3px;">
                             <span>Sér. Blessé:</span>
@@ -118,12 +118,6 @@ function renderGameView(container) {
                             <strong>${lx.seriouslyInjured}</strong>
                             <button class="btn" style="padding:0 4px; font-size:10px;" onclick="adjLiveXP(${idx}, 'seriouslyInjured', 1)">+</button>
                             <small style="color:#888;">(${isFightingPit ? '2XP 🚩' : '1XP'})</small>
-                        </div>
-                        <div style="display:flex; align-items:center; gap:3px;">
-                            <span>Scénario:</span>
-                            <button class="btn" style="padding:0 4px; font-size:10px;" onclick="adjLiveXP(${idx}, 'scenario', -1)">-</button>
-                            <strong>${lx.scenario}</strong>
-                            <button class="btn" style="padding:0 4px; font-size:10px;" onclick="adjLiveXP(${idx}, 'scenario', 1)">+</button>
                         </div>
                         <div style="display:flex; align-items:center; gap:3px;">
                             <span style="color:#e74c3c; font-weight:bold;">OOA:</span>

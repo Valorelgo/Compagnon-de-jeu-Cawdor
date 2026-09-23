@@ -1477,6 +1477,10 @@ function adjLiveXP(fighterIdx, key, delta) {
     if (!m.liveXP) {
         m.liveXP = { assistance: 0, objective: 0, seriouslyInjured: 0, scenario: 0, ooaKills: 0 };
     }
+    // Objectif : plafonné à 1 par partie (une fois gagné, plus de gain
+    // supplémentaire jusqu'à la prochaine partie). Garde-fou logique en plus
+    // du bouton désactivé côté affichage.
+    if (key === 'objective' && delta > 0 && (m.liveXP.objective || 0) >= 1) return;
     m.liveXP[key] = Math.max(0, (m.liveXP[key] || 0) + delta);
     renderGameView(document.getElementById('main-content'));
 }
